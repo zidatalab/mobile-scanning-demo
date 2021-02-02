@@ -1,29 +1,16 @@
 <div class="error-message" *ngIf="errorMessage">
   {{ errorMessage }}
+  
 </div>
 
-<div id="interactive" class="viewport">
+<div style="border: 3px;border-color: grey;margin:20px;">
+<div *ngIf="this.state" id="interactive" class="viewport">
   <!-- QuaggaJS will populate this element -->
 </div>
-
-<div class="instructions">
-  This is a companion app for the blog post located <a target="_blank" href="https://blog.classycode.com/">here</a>.
-  The source code is available on <a target="_blank" href="https://github.com/classycodeoss/mobile-scanning-demo">Github</a>.
 </div>
 
-<div class="shopping-cart">
 
-  <span *ngIf="shoppingCart.isEmpty else shoppingCartItems">Shopping cart is empty</span>
-  <ng-template #shoppingCartItems>
-
-    <app-shopping-cart-item
-      *ngFor="let articleAndCount of shoppingCart.items.entries()"
-      [article]="articleAndCount[0]"
-      [count]="articleAndCount[1]">
-    </app-shopping-cart-item>
-
-    <div class="shopping-cart-total">
-      Total: {{ shoppingCart.totalPrice }} USD
-    </div>
-  </ng-template>
-</div>
+<p> <button (click)="this.changequaggastate();">Scan Starten</button>
+State: {{ this.state}}</p>
+<p *ngIf="this.lastScannedCode">
+  {{this.lastScannedCode}} EFN check: {{this.luhn_check(this.lastScannedCode)}}</p>

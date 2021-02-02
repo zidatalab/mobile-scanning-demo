@@ -127,6 +127,10 @@
           }
         }
       }
-    }},
-  "defaultProject": "mobile-scanning-demo"
+    }
+  },
+  "defaultProject": "mobile-scanning-demo",
+  "cli": {
+    "analytics": false
+  }
 }

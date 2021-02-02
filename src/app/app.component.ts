@@ -1,9 +1,7 @@
-import { AfterViewInit, ChangeDetectorRef, Component, ElementRef, OnInit, ViewChild } from '@angular/core';
-import { BeepService } from './beep.service';
+import { AfterViewInit, Component, ElementRef, OnInit, ViewChild } from '@angular/core';
 import Quagga from 'quagga';
-import { Article } from './article';
-import { ShoppingCart } from './shopping-cart';
-import { UpdateService } from './update.service';
+
+
 
 @Component({
   selector: 'app-root',
@@ -14,81 +12,108 @@ export class AppComponent implements AfterViewInit {
 
   errorMessage: string;
 
-  shoppingCart: ShoppingCart;
-
-  private catalogue: Article[] = [
-    { name: 'Classy Crab (red)', ean: '7601234567890', image: 'assets/classy_crab_red.png', price: 10 },
-    { name: 'Classy Crab (blue)', ean: '7601234561232', image: 'assets/classy_crab_blue.png', price: 10 },
-    { name: 'Classy Crab (gold, ltd. ed.)', ean: '7601234564561', image: 'assets/classy_crab_gold.png', price: 50 }
-  ];
-
-  private lastScannedCode: string;
+  shoppingCart= [];
+  state:boolean;
+  lastScannedCode: string;
   private lastScannedCodeDate: number;
 
-  constructor(private changeDetectorRef: ChangeDetectorRef,
-              private beepService: BeepService,
-              private updateService: UpdateService) {
-    this.shoppingCart = new ShoppingCart();
+  constructor() {    
   }
 
+  ngOnInit(){
+    this.state=false;
+  }
+  
   ngAfterViewInit(): void {
     if (!navigator.mediaDevices || !(typeof navigator.mediaDevices.getUserMedia === 'function')) {
       this.errorMessage = 'getUserMedia is not supported';
       return;
     }
+    this.changequaggastate();
+    
+   }
 
+
+   initscanner(){
     Quagga.init({
-        inputStream: {
-          constraints: {
-            facingMode: 'environment'
-          },
-          area: { // defines rectangle of the detection/localization area
-            top: '40%',    // top offset
-            right: '0%',  // right offset
-            left: '0%',   // left offset
-            bottom: '40%'  // bottom offset
-          },
+      frequency:1,
+      inputStream: {
+        constraints: {
+          facingMode: 'environment'
         },
-        decoder: {
-          readers: ['ean_reader']
+        area: { // defines rectangle of the detection/localization area
+          top: '10%',    // top offset
+          right: '10%',  // right offset
+          left: '10%',   // left offset
+          bottom: '10%'  // bottom offset
         },
       },
-      (err) => {
-        if (err) {
-          this.errorMessage = `QuaggaJS could not be initialized, err: ${err}`;
-        } else {
-          Quagga.start();
-          Quagga.onDetected((res) => {
-            this.onBarcodeScanned(res.codeResult.code);
-          });
-        }
-      });
+      decoder: {
+        readers: ['code_128_reader']
+      },
+    },
+    (err) => {
+      if (err) {
+        this.errorMessage = `QuaggaJS could not be initialized, err: ${err}`;
+      } else {
+        Quagga.start();
+        Quagga.onDetected((res) => {
+          this.onBarcodeScanned(res.codeResult.code);
+          this.state=false;
+        });
+      }
+    });
+   }
+   changequaggastate(){
+     if (this.state){
+      Quagga.stop();
+      this.state=!this.state;
+     }
+     else {
+      this.state=!this.state;
+      setTimeout(() => {
+        this.initscanner();
+      }, 500);
+      
+     }
 
-    setTimeout(() => {
-      this.updateService.checkForUpdates();
-    }, 10000);
+   }
+
+  onBarcodeScanned(code: string) {    
+    // ignore duplicates for an interval of 1.5 seconds
+    console.log("OK:",code);
+    const now = new Date().getTime();
+    if ((code === this.lastScannedCode && (now < this.lastScannedCodeDate + 1500)) || code.length!==15 || !this.luhn_check(code)) {
+      return;
+    }
+    else {
+      this.lastScannedCode= code;
+      this.lastScannedCodeDate = now;
+      this.changequaggastate();
+    }
+    
+    // this.changeDetectorRef.detectChanges();
   }
 
-  onBarcodeScanned(code: string) {
-
-    // ignore duplicates for an interval of 1.5 seconds
-    const now = new Date().getTime();
-    if (code === this.lastScannedCode && (now < this.lastScannedCodeDate + 1500)) {
-      return;
+  luhn_check(value) {
+    // Accept only digits, dashes or spaces
+    if (/[^0-9-\s]+/.test(value)) return false;
+  
+    // The Luhn Algorithm. It's so pretty.
+    let nCheck = 0, bEven = false;
+    value = value.replace(/\D/g, "");
+  
+    for (var n = value.length - 1; n >= 0; n--) {
+      var cDigit = value.charAt(n),
+          nDigit = parseInt(cDigit, 10);
+  
+      if (bEven && (nDigit *= 2) > 9) nDigit -= 9;
+  
+      nCheck += nDigit;
+      bEven = !bEven;
     }
-
-    // ignore unknown articles
-    const article = this.catalogue.find(a => a.ean === code);
-    if (!article) {
-      return;
-    }
-
-    this.shoppingCart.addArticle(article);
-
-    this.lastScannedCode = code;
-    this.lastScannedCodeDate = now;
-    this.beepService.beep();
-    this.changeDetectorRef.detectChanges();
+  
+    return (nCheck % 10) == 0;
   }
 
 }
